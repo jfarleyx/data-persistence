@@ -1,0 +1,82 @@
+-------------------------------------------------------------------------------------------------------------
+Question/Statement:
+Design a schema for entities: Students, Courses and Enrollment.
+Are there any indexes that would help with the below tasks?
+
+Answer:
+See dbschema.sql file for db schema. This will include indexes that can help with 
+lookups and querying filtering.
+
+-------------------------------------------------------------------------------------------------------------
+Question/Statement:
+For the database schema design and types, you can use the spec from any database engine of your choice.
+
+Answer:
+For simplicity and portability, I chose to use SQLite. 
+
+-------------------------------------------------------------------------------------------------------------
+Question/Statement:
+What tables do each database_1 and database_2 have?
+
+Answer
+I would implement all three tables in both databases for a few reasons:
+1.  I don't want to create a "hot spot" in the parititioning. If a frequently accessed table was in only 
+    one database, that database would incur a higher number of queries, thereby creating the hot spot in 
+    our partition scheme. Instead, I would opt to spread the traffic as evenly as possible across all 
+    partitions. 
+2.  Referential integrity can be easily managed/enforced when all related tables are in the same database. 
+3.  The only table that would be a decent candidate for keeping in only one db partition would be the 
+    courses table. I don't believe the table would be that large. So, there wouldn't be a signficant 
+    storage cost to keeping it in both db partitions. Also, it's not a lot of work to write a data 
+    access layer to ensure the tables stay in-sync.
+4.  If one database happened to fail and that was the db that contained the only instance of a table, the 
+    entire system would be down. Whereas, if it's replicated across both db's, at least some functionality 
+    would remain, at least for queries in the remaining partition. 
+    
+-------------------------------------------------------------------------------------------------------------
+Question/Statement:
+Helper functions were provided, but I had some concerns/suggestions as it pertains to those helpers.
+
+Answer:
+I'd suggest adding a variadic parameter to the helpers to accommodate query arguments. By excluding that parameter and 
+requiring the user to build the sql statement with values merged, it forces the developer to either...
+
+1. unsafely merge parameters into the string using something like Sprintf()
+2. write addition logic in the method that contructs the query to mitigate sql injection risk. 
+
+However, by adding a variadic parameter for args in relevant helper functions we can leverage the built-in
+query parameter merging features already available in the Go sql package. For example, the safer way...
+
+func executeGetCoursesSql(ctx context.Context, dbName string, query string, args ...interface{}) ([]Course, error) {
+sql := "INSERT INTO students(name, mobile) VALUES (?, ?)"
+...
+rows, err := partition.db.QueryContext(ctx, sql, name, mobile)
+...
+}
+
+That is, in my humble opinion, another option for safely merging parameters and leveraging built-in logic. I love to 
+learn new ways of doing things, so I would absolutely be open to discussing other approaches!
+
+Context is optional, but I added it to prevent queries from running too long. 
+
+Also, in my code I changed the helper method signatures so that I could pass in a pointer to the correct 
+database partition/connection. 
+
+-------------------------------------------------------------------------------------------------------------
+Other notes:
+
+-   If this were going to production, I'd structure the application very differently. I wouldn't put everything 
+    in the main package and the project structure would be better organized. However, for this exercise I 
+    chose simplicity over a more complex architecture. 
+
+-   I wanted to make a fully functional app. So, this app uses a sqlite db with sample data and all of the 
+    queries and functions work. 
+
+-   In made the parameters returned from functions more consistent, with all of them returning (<data>, error). 
+
+-   Regarding returning errors from root data functions - if the error were going to a UI that end users 
+    would be viewing, I might take more care not to return data access errors that could be used to exploit the 
+    system. Instead, I would log the errors via internal mechanisms and return an error message safe for 
+    consumption by end users. 
+
+-   This was a fun exercise! 
