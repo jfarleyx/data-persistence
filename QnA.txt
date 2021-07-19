@@ -65,6 +65,12 @@ database partition/connection.
 -------------------------------------------------------------------------------------------------------------
 Other notes:
 
+-   For the logic to pick the correct database scheme for queries, I chose to use a rune type for each letter of the 
+    alphabet and associate those to the correct database. It's all stored in a map[rune]*Database type. The 
+    PartitionManager package provides methods for returning the correct *Database, based on the students first letter 
+    of their first name. The map is only 26 keys (one for each capital letter of alphabet) and the values are pointers to the 
+    *Database object. So, the map is small and the key (rune) facilitates fast lookups. 
+
 -   If this were going to production, I'd structure the application very differently. I wouldn't put everything 
     in the main package and the project structure would be better organized. However, for this exercise I 
     chose simplicity over a more complex architecture. 
